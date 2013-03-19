@@ -25,9 +25,6 @@ module Parse
       @master_key     = data[:master_key]
       @session_token  = data[:session_token]
       @max_retries    = data[:max_retries] || 3
-      @session        = Patron::Session.new
-      @session.timeout = 30
-      @session.connect_timeout = 30
 
       if data[:ironio_project_id] && data[:ironio_token]
 
@@ -44,10 +41,7 @@ module Parse
 
       end
 
-      @session.base_url                 = "https://#{host}"
-      @session.headers["Content-Type"]  = "application/json"
-      @session.headers["Accept"]        = "application/json"
-      @session.headers["User-Agent"]    = "Parse for Ruby, 0.0"
+
     end
 
     # Perform an HTTP request for the given uri and method
@@ -55,13 +49,22 @@ module Parse
     # ParseProtocolError if the response has an error status code,
     # and will return the parsed JSON body on success, if there is one.
     def request(uri, method = :get, body = nil, query = nil, content_type = nil)
-      @session.headers[Protocol::HEADER_MASTER_KEY]    = @master_key
-      @session.headers[Protocol::HEADER_API_KEY]  = @api_key
-      @session.headers[Protocol::HEADER_APP_ID]   = @application_id
-      @session.headers[Protocol::HEADER_SESSION_TOKEN]   = @session_token
+      session        = Patron::Session.new
+      session.timeout = 30
+      session.connect_timeout = 30
+      
+      session.base_url                 = "https://#{host}"
+      session.headers["Content-Type"]  = "application/json"
+      session.headers["Accept"]        = "application/json"
+      session.headers["User-Agent"]    = "Parse for Ruby, 0.0"
+
+      session.headers[Protocol::HEADER_MASTER_KEY]    = @master_key
+      session.headers[Protocol::HEADER_API_KEY]  = @api_key
+      session.headers[Protocol::HEADER_APP_ID]   = @application_id
+      session.headers[Protocol::HEADER_SESSION_TOKEN]   = @session_token
 
       if content_type
-        @session.headers["Content-Type"] = content_type
+        session.headers["Content-Type"] = content_type
       end
 
       options = {}
@@ -84,14 +87,14 @@ module Parse
           #  else 
               # add to queue before request
               @queue.post("1")
-              response = @session.request(method, uri, {}, options)
+              response = session.request(method, uri, {}, options)
               # delete from queue after request
               msg = @queue.get()
               msg.delete
           #  end
           #end
         else
-          response = @session.request(method, uri, {}, options)
+          response = session.request(method, uri, {}, options)
         end
 
         parsed = JSON.parse(response.body)
@@ -101,7 +104,7 @@ module Parse
         end
 
         if content_type
-          @session.headers["Content-Type"] = "application/json"
+          session.headers["Content-Type"] = "application/json"
         end
 
         return parsed
